@@ -13,60 +13,63 @@ namespace Otus.IntraProccessIteraction
             var sw = new Stopwatch();
 
             // Обычное вычисление
+            var text = "Последовательный метод";
             sw.Restart();
             var seqSum = SequentialSum(array1);
             sw.Stop();
-            ShowResults("Последовательный метод", array1, sw, seqSum);
+            ShowResults(text, array1, sw, seqSum);
             seqSum = 0;
 
             sw.Restart();
             seqSum = SequentialSum(array2);
             sw.Stop();
-            ShowResults("Последовательный метод", array2, sw, seqSum);
+            ShowResults(text, array2, sw, seqSum);
             seqSum = 0;
 
             sw.Restart();
             seqSum = SequentialSum(array3);
             sw.Stop();
-            ShowResults("Последовательный метод", array3, sw, seqSum);
+            ShowResults(text, array3, sw, seqSum);
             seqSum = 0;
 
             // Параллельное вычисление
+            text = "Параллельный метод с потоками";
             sw.Restart();
             var threadsSum = ParallelThreadsSum(array1);
             sw.Stop();
-            ShowResults("Параллельный метод с потоками", array1, sw, threadsSum);
+            ShowResults(text, array1, sw, threadsSum);
             threadsSum = 0;
 
             sw.Restart();
             threadsSum = ParallelThreadsSum(array2);
             sw.Stop();
-            ShowResults("Параллельный метод с потоками", array2, sw, threadsSum);
+            ShowResults(text, array2, sw, threadsSum);
             threadsSum = 0;
 
             sw.Restart();
             threadsSum = ParallelThreadsSum(array3);
             sw.Stop();
-            ShowResults("Параллельный метод с потоками", array3, sw, threadsSum);
+            ShowResults(text, array3, sw, threadsSum);
             threadsSum = 0;
 
             // Параллельное вычисление с использованием PLINQ
+            text = "Параллельный метод с LINQ";
             sw.Restart();
             var linqSum = ParallelLinqSum(array1);
             sw.Stop();
-            ShowResults("Параллельный метод с LINQ", array1, sw, linqSum);
+            ShowResults(text, array1, sw, linqSum);
             linqSum = 0;
 
             sw.Restart();
             linqSum = ParallelLinqSum(array2);
             sw.Stop();
-            ShowResults("Параллельный метод с LINQ", array2, sw, linqSum);
+            ShowResults(text, array2, sw, linqSum);
             linqSum = 0;
 
             sw.Restart();
             linqSum = ParallelLinqSum(array3);
             sw.Stop();
-            ShowResults("Параллельный метод с LINQ", array3, sw, linqSum);
+            ShowResults(text, array3, sw, linqSum);
             linqSum = 0;
         }
 
@@ -76,50 +79,59 @@ namespace Otus.IntraProccessIteraction
         }
 
 
-        // Последовательный метод
-        static long SequentialSum(int[] arr)
+        static long SequentialSum(int[] array)
         {
-            long sum = 0;
-            for (int i = 0; i < arr.Length; i++)
+            var sum = 0;
+            for (int i = 0; i < array.Length; i++)
             {
-                sum += arr[i];
+                sum += array[i];
             }
             return sum;
         }
 
-        static long ParallelThreadsSum(int[] arr)
+        static long ParallelThreadsSum(int[] array)
         {
-            long sum = 0;
-            var syncLock = new object();
+            var numThreads = Environment.ProcessorCount;
+            var partialResults = new long[numThreads];
+            var threads = new Thread[numThreads];
 
-            var thread = new Thread(() =>
+            var segmentSize = array.Length / numThreads;
+            for (int i = 0; i < numThreads; i++)
             {
+                int startIndex = i * segmentSize;
+                int endIndex = (i == numThreads - 1) ? array.Length : (startIndex + segmentSize);
 
-                for (var i = 0; i < arr.Length / 2; i++)
-                {
-                    lock (syncLock)
-                    {
-                        sum += arr[i];
-                    }
-                }
-            });
-            thread.Start();
-
-            for (var i = arr.Length / 2; i < arr.Length; i++)
-            {
-                lock (syncLock)
-                {
-                    sum += arr[i];
-                }
+                int localI = i;
+                threads[i] = new Thread(() => CalculatePartialSum(localI, array, startIndex, endIndex, partialResults));
+                threads[i].Start();
             }
 
-            thread.Join();
-            return sum;
+            foreach (var thread in threads)
+            {
+                thread.Join();
+            }
+
+            long finalSum = 0;
+            foreach (var sum in partialResults)
+            {
+                finalSum += sum;
+            }
+            return finalSum;
         }
 
-        static long ParallelLinqSum(int[] arr)
+        static void CalculatePartialSum(int index, int[] array, int startIndex, int endIndex, long[] results)
         {
-            return arr.AsParallel().Sum();
+            var sum = 0;
+            for (var i = startIndex; i < endIndex; i++)
+            {
+                sum += array[i];
+            }
+            results[index] = sum;
+        }
+
+        static long ParallelLinqSum(int[] array)
+        {
+            return array.AsParallel().Sum();
         }
     }
 }
